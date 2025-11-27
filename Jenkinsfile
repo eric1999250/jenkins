@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_IMAGE = 'dockerhub_username/my-web-app' // replace with your Docker Hub username
-    DOCKER_CREDENTIALS_ID = 'docker-hub-credentials' // Jenkins credentials ID
+    DOCKER_IMAGE = 'dockerhub_username/my-web-app'
+    DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
   }
 
   stages {
@@ -15,15 +15,15 @@ pipeline {
 
     stage('Build') {
       steps {
-        echo "Building the project..."
-        bat 'mvn clean install' // replace with your build command if needed
+        echo "Building the project with Maven..."
+        bat '"C:\\Program Files\\apache-maven-3.9.11\\bin\\mvn" clean install'
       }
     }
 
     stage('Test') {
       steps {
-        echo "Running tests..."
-        bat 'mvn test' // replace with your test command if needed
+        echo "Running tests with Maven..."
+        bat '"C:\\Program Files\\apache-maven-3.9.11\\bin\\mvn" test'
       }
     }
 
@@ -47,9 +47,8 @@ pipeline {
 
     stage('Deploy') {
       steps {
-        echo "Deployment complete!" // optional, can copy files to a folder/server
+        echo "Deployment complete!"
       }
     }
   }
 }
-
