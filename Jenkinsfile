@@ -2,16 +2,10 @@ pipeline {
     agent any
 
     environment {
-        // Docker configuration
         DOCKER_IMAGE = 'ericuwineza/my-web-app'
         DOCKER_TAG = 'latest'
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
-
-        // Ports
         APP_PORT = '8080'
         CONTAINER_PORT = '3000'
-
-        // Maven configuration
         MAVEN_HOME = "C:\\Program Files\\apache-maven-3.9.11"
         PATH = "${env.MAVEN_HOME}\\bin;${env.PATH}"
     }
@@ -58,29 +52,26 @@ pipeline {
         stage('Push Docker Image to Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
-                        dockerImage.push("${DOCKER_TAG}")
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
+                                                     usernameVariable: 'DOCKER_USER',
+                                                     passwordVariable: 'DOCKER_PASS')]) {
+                        bat """
+                        docker login -u %DOCKER_USER% -p %DOCKER_PASS%
+                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker logout
+                        """
                         echo "Docker image pushed to Docker Hub"
                     }
                 }
             }
         }
 
-        stage('Stop Old Local Container') {
+        stage('Deploy to Local Docker Host') {
             steps {
-                echo "Stopping old local container if exists..."
-                bat 'docker rm -f my-web-app || exit 0'
-            }
-        }
-
-        stage('Deploy Locally') {
-            steps {
-                echo "Deploying container locally..."
+                echo "Deploying container on local Docker host..."
                 bat """
-                docker run -d --name my-web-app ^
-                    -p ${APP_PORT}:${CONTAINER_PORT} ^
-                    --restart unless-stopped ^
-                    ${DOCKER_IMAGE}:${DOCKER_TAG}
+                docker rm -f my-web-app || exit 0
+                docker run -d --name my-web-app -p ${APP_PORT}:${CONTAINER_PORT} --restart unless-stopped ${DOCKER_IMAGE}:${DOCKER_TAG}
                 """
             }
         }
@@ -97,22 +88,29 @@ pipeline {
             }
         }
 
-        stage('Deploy to Remote Linux Host') {
+        stage('Deploy to Remote Docker Host') {
             steps {
                 sshagent(['remote-host-ssh-key']) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no user@remote-host "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                        ssh user@remote-host "docker rm -f my-web-app || true"
-                        ssh user@remote-host "docker run -d --name my-web-app -p ${APP_PORT}:${CONTAINER_PORT} --restart unless-stopped ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                        
-                        # Verify remote deployment
-                        sleep 5
-                        ssh user@remote-host "docker ps | grep my-web-app"
-                        ssh user@remote-host "curl -f http://localhost:${APP_PORT}"
+                    ssh -o StrictHostKeyChecking=no user@remote-host "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    ssh user@remote-host "docker rm -f my-web-app || true"
+                    ssh user@remote-host "docker run -d --name my-web-app -p ${APP_PORT}:${CONTAINER_PORT} --restart unless-stopped ${DOCKER_IMAGE}:${DOCKER_TAG}"
                     """
                 }
             }
         }
+
+        stage('Verify Remote Deployment') {
+            steps {
+                sshagent(['remote-host-ssh-key']) {
+                    sh """
+                    ssh user@remote-host "docker ps | grep my-web-app"
+                    ssh user@remote-host "curl -f http://localhost:${APP_PORT} || exit 1"
+                    """
+                }
+            }
+        }
+
     }
 
     post {
@@ -123,10 +121,6 @@ pipeline {
         failure {
             echo "❌ Pipeline failed! Check logs above."
             bat 'docker logs my-web-app || exit 0'
-        }
-        always {
-            echo "Cleaning up..."
-            bat 'docker logout || exit 0'
         }
     }
 }
