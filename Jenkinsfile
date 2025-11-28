@@ -3,11 +3,11 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'ericuwineza/my-web-app'
-        DOCKER_TAG = 'latest'
-        APP_PORT = '8080'
+        DOCKER_TAG   = 'latest'
+        APP_PORT     = '8080'
         CONTAINER_PORT = '3000'
-        MAVEN_HOME = "C:\\Program Files\\apache-maven-3.9.11"
-        PATH = "${env.MAVEN_HOME}\\bin;${env.PATH}"
+        MAVEN_HOME   = "C:\\Program Files\\apache-maven-3.9.11"
+        PATH         = "${env.MAVEN_HOME}\\bin;${env.PATH}"
     }
 
     stages {
@@ -29,14 +29,14 @@ pipeline {
         stage('Build Maven Project') {
             steps {
                 echo "Building project with Maven..."
-                bat '"C:\\Program Files\\apache-maven-3.9.11\\bin\\mvn" clean install'
+                bat "\"${MAVEN_HOME}\\bin\\mvn\" clean install -Dfile.encoding=UTF-8"
             }
         }
 
         stage('Run Tests') {
             steps {
                 echo "Running tests..."
-                bat '"C:\\Program Files\\apache-maven-3.9.11\\bin\\mvn" test'
+                bat "\"${MAVEN_HOME}\\bin\\mvn\" test -Dfile.encoding=UTF-8"
             }
         }
 
@@ -52,9 +52,11 @@ pipeline {
         stage('Push Docker Image to Hub') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
-                                                     usernameVariable: 'DOCKER_USER',
-                                                     passwordVariable: 'DOCKER_PASS')]) {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
                         bat """
                         docker login -u %DOCKER_USER% -p %DOCKER_PASS%
                         docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
@@ -91,9 +93,9 @@ pipeline {
         stage('Deploy to Remote Docker Host') {
             steps {
                 sshagent(['remote-host-ssh-key']) {
-                    sh """
+                    bat """
                     ssh -o StrictHostKeyChecking=no user@remote-host "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    ssh user@remote-host "docker rm -f my-web-app || true"
+                    ssh user@remote-host "docker rm -f my-web-app || exit 0"
                     ssh user@remote-host "docker run -d --name my-web-app -p ${APP_PORT}:${CONTAINER_PORT} --restart unless-stopped ${DOCKER_IMAGE}:${DOCKER_TAG}"
                     """
                 }
@@ -103,8 +105,8 @@ pipeline {
         stage('Verify Remote Deployment') {
             steps {
                 sshagent(['remote-host-ssh-key']) {
-                    sh """
-                    ssh user@remote-host "docker ps | grep my-web-app"
+                    bat """
+                    ssh user@remote-host "docker ps | findstr my-web-app"
                     ssh user@remote-host "curl -f http://localhost:${APP_PORT} || exit 1"
                     """
                 }
