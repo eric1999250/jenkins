@@ -11,7 +11,7 @@ pipeline {
         APP_PORT = '8080'
         CONTAINER_PORT = '3000'
 
-        // Maven
+        // Maven configuration
         MAVEN_HOME = "C:\\Program Files\\apache-maven-3.9.11"
         PATH = "${env.MAVEN_HOME}\\bin;${env.PATH}"
     }
@@ -34,7 +34,7 @@ pipeline {
 
         stage('Build Maven Project') {
             steps {
-                echo "Building project..."
+                echo "Building project with Maven..."
                 bat '"C:\\Program Files\\apache-maven-3.9.11\\bin\\mvn" clean install'
             }
         }
@@ -68,64 +68,65 @@ pipeline {
 
         stage('Stop Old Local Container') {
             steps {
-                echo "Stopping old local container..."
-                sh 'docker rm -f my-web-app || true'
+                echo "Stopping old local container if exists..."
+                bat 'docker rm -f my-web-app || exit 0'
             }
         }
 
         stage('Deploy Locally') {
             steps {
                 echo "Deploying container locally..."
-                sh """
-                    docker run -d --name my-web-app \
-                        -p ${APP_PORT}:${CONTAINER_PORT} \
-                        --restart unless-stopped \
-                        ${DOCKER_IMAGE}:${DOCKER_TAG}
+                bat """
+                docker run -d --name my-web-app ^
+                    -p ${APP_PORT}:${CONTAINER_PORT} ^
+                    --restart unless-stopped ^
+                    ${DOCKER_IMAGE}:${DOCKER_TAG}
                 """
             }
         }
 
         stage('Verify Local Deployment') {
             steps {
-                echo "Verifying deployment..."
-                sh """
-                    sleep 5
-                    docker ps | grep my-web-app
-                    docker logs my-web-app
-                    curl -f http://localhost:${APP_PORT} || exit 1
+                echo "Verifying local deployment..."
+                bat """
+                timeout /t 5
+                docker ps | findstr my-web-app
+                docker logs my-web-app
+                curl -f http://localhost:${APP_PORT} || exit 1
                 """
             }
         }
 
-        stage('Deploy to Remote Host') {
+        stage('Deploy to Remote Linux Host') {
             steps {
                 sshagent(['remote-host-ssh-key']) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no user@remote-host 'docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}'
-                        ssh user@remote-host 'docker rm -f my-web-app || true'
-                        ssh user@remote-host 'docker run -d --name my-web-app -p ${APP_PORT}:${CONTAINER_PORT} --restart unless-stopped ${DOCKER_IMAGE}:${DOCKER_TAG}'
+                        ssh -o StrictHostKeyChecking=no user@remote-host "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                        ssh user@remote-host "docker rm -f my-web-app || true"
+                        ssh user@remote-host "docker run -d --name my-web-app -p ${APP_PORT}:${CONTAINER_PORT} --restart unless-stopped ${DOCKER_IMAGE}:${DOCKER_TAG}"
                         
+                        # Verify remote deployment
                         sleep 5
-                        ssh user@remote-host 'docker ps | grep my-web-app'
-                        ssh user@remote-host 'curl -f http://localhost:${APP_PORT}'
+                        ssh user@remote-host "docker ps | grep my-web-app"
+                        ssh user@remote-host "curl -f http://localhost:${APP_PORT}"
                     """
                 }
             }
         }
-
     }
 
     post {
         success {
-            echo "✅ Pipeline finished successfully! Application running locally on http://localhost:${APP_PORT}"
+            echo "✅ Pipeline finished successfully!"
+            echo "Local app running at http://localhost:${APP_PORT}"
         }
         failure {
             echo "❌ Pipeline failed! Check logs above."
-            sh 'docker logs my-web-app || true'
+            bat 'docker logs my-web-app || exit 0'
         }
         always {
             echo "Cleaning up..."
-            sh 'docker logout || true'
+            bat 'docker logout || exit 0'
         }
     }
 }
