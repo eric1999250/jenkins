@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         // Docker configuration
-        DOCKER_IMAGE = 'dockerhub_username/my-web-app' // replace with your Docker Hub username
-        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials' // Jenkins credentials ID
+        DOCKER_IMAGE = 'ericuwineza/my-web-app'  // FIXED
+        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials' // Must match Jenkins credentials
 
         // Maven configuration
         MAVEN_HOME = "C:\\Program Files\\apache-maven-3.9.11"
@@ -13,7 +13,6 @@ pipeline {
 
     stages {
 
-        // Stage 0: Clean workspace
         stage('Clean Workspace') {
             steps {
                 deleteDir()
@@ -21,7 +20,6 @@ pipeline {
             }
         }
 
-        // Stage 1: Checkout code from GitHub
         stage('Checkout') {
             steps {
                 checkout scm
@@ -29,7 +27,6 @@ pipeline {
             }
         }
 
-        // Stage 2: Build with Maven
         stage('Build') {
             steps {
                 echo "Building the project with Maven..."
@@ -37,7 +34,6 @@ pipeline {
             }
         }
 
-        // Stage 3: Run tests
         stage('Test') {
             steps {
                 echo "Running tests..."
@@ -45,7 +41,6 @@ pipeline {
             }
         }
 
-        // Stage 4: Build Docker image
         stage('Build Docker Image') {
             steps {
                 script {
@@ -55,7 +50,6 @@ pipeline {
             }
         }
 
-        // Stage 5: Push Docker image to Docker Hub
         stage('Push to Docker Hub') {
             steps {
                 script {
@@ -67,11 +61,9 @@ pipeline {
             }
         }
 
-        // Stage 6: Deployment (optional)
         stage('Deploy') {
             steps {
                 echo "Deployment complete!"
-                // You can add actual deployment steps here if needed
             }
         }
     }
