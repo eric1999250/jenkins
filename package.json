@@ -1,0 +1,10 @@
+{
+  "name": "nodejs-app",
+  "version": "1.0.0",
+  "description": "Node.js Helm app",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {}
+}
