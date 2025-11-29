@@ -1,10 +1,11 @@
 {
   "name": "nodejs-app",
   "version": "1.0.0",
-  "description": "Node.js Helm app",
+  "description": "My Node.js App",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
   },
-  "dependencies": {}
+  "author": "Uwineza Eric",
+  "license": "MIT"
 }
