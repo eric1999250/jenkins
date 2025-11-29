@@ -3,7 +3,7 @@ name: Release Web Application
 on:
   push:
     tags:
-      - 'v*.*.*'      # Trigger when a tag is pushed
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       version:
@@ -16,11 +16,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Log in to GitHub Container Registry
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -28,7 +26,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 3: Build Docker image
+      # Build image
       - name: Build Docker image
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -36,11 +34,12 @@ jobs:
           else
             VERSION=${{ github.ref_name }}
           fi
-          IMAGE_NAME=ghcr.io/${{ github.repository }}/nodejs-app:$VERSION
+
+          IMAGE_NAME=ghcr.io/${{ github.actor }}/nodejs-app:$VERSION
           echo "Building Docker image: $IMAGE_NAME"
           docker build -t $IMAGE_NAME .
 
-      # Step 4: Push Docker image
+      # Push image
       - name: Push Docker image
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -48,17 +47,18 @@ jobs:
           else
             VERSION=${{ github.ref_name }}
           fi
-          IMAGE_NAME=ghcr.io/${{ github.repository }}/nodejs-app:$VERSION
+
+          IMAGE_NAME=ghcr.io/${{ github.actor }}/nodejs-app:$VERSION
           echo "Pushing Docker image: $IMAGE_NAME"
           docker push $IMAGE_NAME
 
-      # Step 5: Set up Helm
+      # Setup Helm
       - name: Set up Helm
         uses: azure/setup-helm@v3
         with:
           version: v3.15.0
 
-      # Step 6: Upgrade Helm release
+      # Deploy with Helm
       - name: Upgrade Helm release
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -66,8 +66,10 @@ jobs:
           else
             VERSION=${{ github.ref_name }}
           fi
-          echo "Upgrading Helm release with image tag: $VERSION"
+
+          echo "Upgrading Helm with tag: $VERSION"
+
           helm upgrade my-release ./nodejs-app \
-            --set image.repository=ghcr.io/${{ github.repository }}/nodejs-app \
+            --set image.repository=ghcr.io/${{ github.actor }}/nodejs-app \
             --set image.tag=$VERSION \
             --install
