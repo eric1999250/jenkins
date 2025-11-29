@@ -1,5 +1,4 @@
 name: Release Web Application
-
 on:
   push:
     tags:
@@ -10,22 +9,21 @@ on:
         description: 'Version to release'
         required: true
         default: 'v1.0.0'
-
 jobs:
   release:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       # Build image
       - name: Build Docker image
         run: |
@@ -34,11 +32,9 @@ jobs:
           else
             VERSION=${{ github.ref_name }}
           fi
-
           IMAGE_NAME=ghcr.io/${{ github.actor }}/nodejs-app:$VERSION
           echo "Building Docker image: $IMAGE_NAME"
           docker build -t $IMAGE_NAME .
-
       # Push image
       - name: Push Docker image
         run: |
@@ -47,17 +43,14 @@ jobs:
           else
             VERSION=${{ github.ref_name }}
           fi
-
           IMAGE_NAME=ghcr.io/${{ github.actor }}/nodejs-app:$VERSION
           echo "Pushing Docker image: $IMAGE_NAME"
           docker push $IMAGE_NAME
-
       # Setup Helm
       - name: Set up Helm
         uses: azure/setup-helm@v3
         with:
           version: v3.15.0
-
       # Deploy with Helm
       - name: Upgrade Helm release
         run: |
@@ -66,9 +59,7 @@ jobs:
           else
             VERSION=${{ github.ref_name }}
           fi
-
           echo "Upgrading Helm with tag: $VERSION"
-
           helm upgrade my-release ./nodejs-app \
             --set image.repository=ghcr.io/${{ github.actor }}/nodejs-app \
             --set image.tag=$VERSION \
