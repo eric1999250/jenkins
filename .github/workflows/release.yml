@@ -51,6 +51,13 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: v3.15.0
+      # Configure kubectl
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+          kubectl cluster-info
       # Deploy with Helm
       - name: Upgrade Helm release
         run: |
